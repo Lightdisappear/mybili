@@ -1,5 +1,5 @@
 <template>
-    <div id="artplayer" ref="$container" class="w-full md:flex-1 artplayer-app"></div>
+  <div id="artplayer" ref="$container" class="w-full md:flex-1 artplayer-app"></div>
 </template>
 <script lang="ts" setup>
 import { onMounted, ref, shallowRef, onBeforeUnmount } from 'vue';
@@ -14,27 +14,27 @@ const $container = ref<HTMLDivElement | null>(null)
 
 // 定义事件
 const emit = defineEmits<{
-    ready: []
+  ready: []
 }>()
 
 const props = defineProps<{
-    danmaku: any[]
-    url: string
+  danmaku: any[]
+  url: string
 }>()
 
 /**
  * 从 localStorage 读取弹幕配置
  */
 const loadDanmakuConfig = (): Partial<Option> | null => {
-    try {
-        const saved = localStorage.getItem(DANMAKU_CONFIG_KEY)
-        if (saved) {
-            return JSON.parse(saved)
-        }
-    } catch (error) {
-        console.error('读取弹幕配置失败:', error)
+  try {
+    const saved = localStorage.getItem(DANMAKU_CONFIG_KEY)
+    if (saved) {
+      return JSON.parse(saved)
     }
-    return null
+  } catch (error) {
+    console.error('读取弹幕配置失败:', error)
+  }
+  return null
 }
 
 /**
@@ -42,107 +42,141 @@ const loadDanmakuConfig = (): Partial<Option> | null => {
  * 只保存预设中的 key
  */
 const saveDanmakuConfig = (config: DanmakuOption) => {
-    try {
-        const configToSave: Partial<Option> = {
-            speed: config.speed,
-            antiOverlap: config.antiOverlap,
-            synchronousPlayback: config.synchronousPlayback,
-            fontSize: config.fontSize,
-            theme: config.theme,
-            margin: config.margin,
-            modes: config.modes,
-        }
-        localStorage.setItem(DANMAKU_CONFIG_KEY, JSON.stringify(configToSave))
-        console.log('弹幕配置已保存:', configToSave)
-    } catch (error) {
-        console.error('保存弹幕配置失败:', error)
+  try {
+    const configToSave: Partial<Option> = {
+      speed: config.speed,
+      antiOverlap: config.antiOverlap,
+      synchronousPlayback: config.synchronousPlayback,
+      fontSize: config.fontSize,
+      theme: config.theme,
+      margin: config.margin,
+      modes: config.modes,
     }
+    localStorage.setItem(DANMAKU_CONFIG_KEY, JSON.stringify(configToSave))
+    console.log('弹幕配置已保存:', configToSave)
+  } catch (error) {
+    console.error('保存弹幕配置失败:', error)
+  }
 }
 
-const switchVideo = (param: { url: string, danmaku: any[] }) => {
-    if (art.value) {
+/**
+ * 同步播放器循环状态
+ */
+const setLoopState = (enabled: boolean) => {
+  if (!art.value) return
+
+  // 兼容播放器内部的视频循环状态
+  art.value.video.loop = enabled
+
+  // 有些版本会读取实例配置，这里也同步一下
+  ;(art.value as any).option.loop = enabled
+}
+
+const switchVideo = (param: { url: string; danmaku: any[] }) => {
+  if (art.value) {
         (art.value.plugins as any).artplayerPluginDanmuku.config({
             danmuku: param.danmaku
         });
         (art.value.plugins as any).artplayerPluginDanmuku.load()
-        art.value.url = param.url
-        art.value.play()
-    }
+    art.value.url = param.url
+    art.value.play()
+  }
 }
 
 onMounted(async () => {
-    const isMobile = document.documentElement.clientWidth < 768
-    const volume = isMobile ? 1 : 0.5
-    const fullscreenWeb = isMobile ? false : true
+  const isMobile = document.documentElement.clientWidth < 768
+  const volume = isMobile ? 1 : 0.5
+  const fullscreenWeb = isMobile ? false : true
 
-    // 默认配置
-    const defaultDanmakuOption = {
-        speed: isMobile ? 4 : 7.5,
-        antiOverlap: true,
-        synchronousPlayback: false,
-        fontSize: isMobile ? 14 : 25,
+  // 默认配置
+  const defaultDanmakuOption = {
+    speed: isMobile ? 4 : 7.5,
+    antiOverlap: true,
+    synchronousPlayback: false,
+    fontSize: isMobile ? 14 : 25,
         theme: "light",
         margin: isMobile ? [10, '75%'] as [number | `${number}%`, number | `${number}%`] : [10, 10] as [number | `${number}%`, number | `${number}%`],
-        modes: [0, 1, 2],
-    } as Option
+    modes: [0, 1, 2],
+  } as Option
 
-    // 读取已保存的配置
-    const savedConfig = loadDanmakuConfig()
-    
-    // 合并配置：优先使用已保存的配置，其次使用默认配置
-    const presetDanmakuOption = {
-        ...defaultDanmakuOption,
-        ...savedConfig,
-        danmuku: props.danmaku, // 弹幕数据始终使用 props
-    } as Option
+  // 读取已保存的配置
+  const savedConfig = loadDanmakuConfig()
 
-    console.log('使用的弹幕配置:', presetDanmakuOption)
+  // 合并配置：优先使用已保存的配置，其次使用默认配置
+  const presetDanmakuOption = {
+    ...defaultDanmakuOption,
+    ...savedConfig,
+    danmuku: props.danmaku, // 弹幕数据始终使用 props
+  } as Option
+
+  console.log('使用的弹幕配置:', presetDanmakuOption)
 
     const plugins: any[] = [
         artplayerPluginDanmuku(presetDanmakuOption),
     ]
-    art.value = new Artplayer({
-        container: $container.value as HTMLDivElement,
-        fullscreen: true,
-        fullscreenWeb: fullscreenWeb,
-        autoOrientation: true,
-        url: props.url,
-        setting: true,
-        volume: volume,
-        flip: true,
-        playbackRate: true,
-        theme: "#e749a0",
-        miniProgressBar: true,
+  art.value = new Artplayer({
+    container: $container.value as HTMLDivElement,
+    fullscreen: true,
+    fullscreenWeb: fullscreenWeb,
+    autoOrientation: true,
+    url: props.url,
+    setting: true,
+    volume: volume,
+    flip: true,
+    playbackRate: true,
+    theme: '#e749a0',
+    miniProgressBar: true,
+    loop: false,
+
+    // 这里新增 Loop 开关
+    settings: [
+      {
+        html: 'Loop',
+        // icon: '<img width="22" height="22" src="/assets/img/state.svg">',
+        tooltip: 'OFF',
+        switch: false,
+        onSwitch(item) {
+          const next = !item.switch
+        //   item.tooltip = next ? 'ON' : 'OFF'
+          setLoopState(next)
+          return next ? 'ON' : 'OFF'
+        },
+      },
+    ],
 
         plugins: plugins
-    })
-    // 监听弹幕配置变化并保存
-    art.value?.on('artplayerPluginDanmuku:config', (...args: unknown[]) => {
-        const option = args[0] as DanmakuOption
+  })
+
+  // 初始化时同步一次 loop 状态
+  setLoopState(false)
+
+  // 监听弹幕配置变化并保存
+  art.value?.on('artplayerPluginDanmuku:config', (...args: unknown[]) => {
+    const option = args[0] as DanmakuOption
         console.info('弹幕配置变化:', option);
-        saveDanmakuConfig(option)
+    saveDanmakuConfig(option)
     });
-    
-    emit('ready')
+
+  emit('ready')
 })
 onBeforeUnmount(() => {
-    art.value?.destroy(false)
+  art.value?.destroy(false)
 })
 defineExpose({
-    switchVideo,
+  switchVideo,
 })
 </script>
 <style scoped>
 .artplayer-app {
-    width: 100%;
-    height: 600px;
-    position: relative;
-    overflow: hidden;
+  width: 100%;
+  height: 600px;
+  position: relative;
+  overflow: hidden;
 }
 
 @media (max-width: 768px) {
-    .artplayer-app {
-        height: 300px;
-    }
+  .artplayer-app {
+    height: 300px;
+  }
 }
 </style>
